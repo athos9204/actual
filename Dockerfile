@@ -1,27 +1,54 @@
-# Use a smaller Node.js image (slim version)
-FROM node:18-slim
+# ===== Builder Stage =====
+FROM node:18-slim AS builder
 
-# Enable Corepack and install Yarn 4.3.1
+# 1. Enable Corepack and prepare Yarn
 RUN corepack enable && corepack prepare yarn@4.3.1 --activate
 
-# Set the working directory in the container
+# Force Yarn to use the node-modules linker
+ENV YARN_NODE_LINKER=node-modules
+
 WORKDIR /app
 
-# Copy package.json and yarn.lock files into the container (only those files needed to install dependencies)
+# 2. Copy Yarn configuration and infrastructure
+COPY .yarnrc.yml .yarn/releases/yarn-4.3.1.cjs .yarn/
+
+# 3. Copy root manifests
 COPY package.json yarn.lock ./
 
-# Install project dependencies using Yarn workspaces focus for production
-RUN yarn workspaces focus --production
+# 4. Copy the entire workspace directories
+COPY packages ./packages
 
-# Copy the rest of the project files into the container (only after dependencies are installed)
+# 5. (Optional) Validate workspace structure
+RUN find packages/ -name package.json | xargs -I{} sh -c 'echo "Workspace manifest: {}"'
+
+# 6. Install production dependencies for the sync-server workspace
+RUN yarn workspaces focus @actual-app/sync-server --production
+
+# 7. Copy remaining source code (if there are additional files outside the above directories)
 COPY . .
 
-# Switch to a non-root user for security
-RUN addgroup --system app && adduser --system --ingroup app app && chown -R app:app /app
-USER app
+# ===== Production Stage =====
+FROM node:18-slim AS production
 
-# Expose port 5006 for Actual server
+WORKDIR /app
+
+# Force Yarn to use node-modules in production as well
+ENV YARN_NODE_LINKER=node-modules
+
+# Copy the built application from the builder stage.
+COPY --from=builder /app /app
+
+# Create a non-root user with a proper home directory and adjust permissions.
+RUN addgroup --system app && \
+    adduser --system --ingroup app --home /home/app app && \
+    chown -R app:app /app /home/app
+
+# Switch to the non-root user.
+USER app
+ENV HOME=/home/app
+
+# Expose the server port.
 EXPOSE 5006
 
-# Start the Actual server
+# Start the Actual server.
 CMD ["yarn", "start:server"]

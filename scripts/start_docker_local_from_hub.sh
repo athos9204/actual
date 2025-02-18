@@ -1,0 +1,1 @@
+docker run --pull=always --restart=no -d -p 5006:5006 -v /Users/athos/dev/actual_data:/data --name my_actual_budget athos9204/actual-budget-athos:latest
