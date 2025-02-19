@@ -11,7 +11,7 @@ services:
     environment:
       - HTTPS
     ports:
-      - '3001:3001'
+      - '5006:5006'
     volumes:
       - '.:/app'
     restart: 'unless-stopped'
