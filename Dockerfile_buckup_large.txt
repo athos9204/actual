@@ -1,0 +1,38 @@
+# Base image with Corepack and Node.js support
+FROM node:20-alpine AS builder
+
+# Enable Corepack
+RUN corepack enable
+
+# Set work directory
+WORKDIR /app
+
+# Copy everything (ensures all required files are included)
+COPY . .
+
+# Install dependencies with Yarn
+RUN yarn install --immutable
+
+# === Final runtime image ===
+FROM node:20-alpine
+
+# Set work directory
+WORKDIR /app
+
+# Copy everything from the builder stage
+COPY --from=builder /app /app
+
+# Ensure the node user owns the application files
+RUN chown -R node:node /app
+
+# Ensure /data exists and has the correct permissions
+RUN mkdir -p /data && chown -R node:node /data
+
+# Set user to non-root
+USER node
+
+# Expose the required port
+EXPOSE 5006
+
+# Run the application
+CMD ["yarn", "start:server"]

@@ -1,54 +1,27 @@
-# ===== Builder Stage =====
-FROM node:18-slim AS builder
-
-# 1. Enable Corepack and prepare Yarn
-RUN corepack enable && corepack prepare yarn@4.3.1 --activate
-
-# Force Yarn to use the node-modules linker
-ENV YARN_NODE_LINKER=node-modules
-
+FROM alpine:3.18 AS base
+RUN apk add --no-cache nodejs yarn npm python3 openssl build-base
 WORKDIR /app
-
-# 2. Copy Yarn configuration and infrastructure
-COPY .yarnrc.yml .yarn/releases/yarn-4.3.1.cjs .yarn/
-
-# 3. Copy root manifests
-COPY package.json yarn.lock ./
-
-# 4. Copy the entire workspace directories
-COPY packages ./packages
-
-# 5. (Optional) Validate workspace structure
-RUN find packages/ -name package.json | xargs -I{} sh -c 'echo "Workspace manifest: {}"'
-
-# 6. Install production dependencies for the sync-server workspace
+COPY .yarn ./.yarn
+COPY yarn.lock packages/sync-server/package.json .yarnrc.yml ./
+RUN if [ "$(uname -m)" = "armv7l" ]; then yarn config set taskPoolConcurrency 2; yarn config set networkConcurrency 5; fi
 RUN yarn workspaces focus @actual-app/sync-server --production
+RUN if [ "$(uname -m)" = "armv7l" ]; then npm install bcrypt better-sqlite3 --build-from-source; fi
 
-# 7. Copy remaining source code (if there are additional files outside the above directories)
-COPY . .
+FROM alpine:3.18 AS prod
+RUN apk add --no-cache nodejs tini
 
-# ===== Production Stage =====
-FROM node:18-slim AS production
+ARG USERNAME=actual
+ARG USER_UID=1001
+ARG USER_GID=$USER_UID
+RUN addgroup -S ${USERNAME} -g ${USER_GID} && adduser -S ${USERNAME} -G ${USERNAME} -u ${USER_UID}
+RUN mkdir /data && chown -R ${USERNAME}:${USERNAME} /data
 
 WORKDIR /app
-
-# Force Yarn to use node-modules in production as well
-ENV YARN_NODE_LINKER=node-modules
-
-# Copy the built application from the builder stage.
-COPY --from=builder /app /app
-
-# Create a non-root user with a proper home directory and adjust permissions.
-RUN addgroup --system app && \
-    adduser --system --ingroup app --home /home/app app && \
-    chown -R app:app /app /home/app
-
-# Switch to the non-root user.
-USER app
-ENV HOME=/home/app
-
-# Expose the server port.
+ENV NODE_ENV=production
+COPY --from=base /app/node_modules /app/node_modules
+COPY /packages/sync-server/package.json /packages/sync-server/app.js ./
+COPY /packages/sync-server/src ./src
+COPY /packages/sync-server/migrations ./migrations
+ENTRYPOINT ["/sbin/tini","-g",  "--"]
 EXPOSE 5006
-
-# Start the Actual server.
-CMD ["yarn", "start:server"]
+CMD ["node", "app.js"]

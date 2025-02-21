@@ -53,3 +53,7 @@ bundle.mobile.js.map
 
 # build output
 package.tgz
+
+# custom docker files
+stable-alpine.Dockerfile
+stable-ubuntu.Dockerfile

@@ -44,6 +44,20 @@ function About() {
 
   return (
     <Setting>
+      <View
+        style={{
+          borderTop: `2px solid ${theme.noticeText}`,
+          paddingTop: '10px',
+          marginBottom: '20px',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}
+      >
+        <Text style={{ fontSize: '14px', color: theme.noticeText }}>
+          <Trans>This is a custom build of Athos</Trans>
+        </Text>
+      </View>
       <Text>
         <Trans>
           <strong>Actual</strong> is a super fast privacy-focused app for
