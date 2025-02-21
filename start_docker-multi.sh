@@ -29,6 +29,8 @@ case $choice in
     2)
         docker run --pull=never --restart=unless-stopped -d \
           -p 5006:5006 \
+          -v /etc/letsencrypt/live/kt-budget.duckdns.org:/etc/letsencrypt/live/kt-budget.duckdns.org \
+          -v /etc/letsencrypt/archive/kt-budget.duckdns.org:/etc/letsencrypt/archive/kt-budget.duckdns.org \
           --mount source=actual-budget-data,target=/data \
           --name actual-budget-athos-amd64 \
           athos9204/actual-budget-athos-amd64:latest
@@ -43,6 +45,8 @@ case $choice in
     4)
         docker run --restart=unless-stopped -d \
           -p 5006:5006 \
+          -v /etc/letsencrypt/live/kt-budget.duckdns.org:/etc/letsencrypt/live/kt-budget.duckdns.org \
+          -v /etc/letsencrypt/archive/kt-budget.duckdns.org:/etc/letsencrypt/archive/kt-budget.duckdns.org \
           --mount source=actual-budget-data,target=/data \
           --name actual-budget-athos-amd64 \
           athos9204/actual-budget-athos-amd64:latest
